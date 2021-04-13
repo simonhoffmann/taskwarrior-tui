@@ -17,29 +17,6 @@ use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, PartialOrd)]
-pub enum Key {
-    Backspace,
-    Left,
-    Right,
-    Up,
-    Down,
-    Home,
-    End,
-    PageUp,
-    PageDown,
-    BackTab,
-    Delete,
-    Insert,
-    F(u8),
-    Char(char),
-    Alt(char),
-    Ctrl(char),
-    Null,
-    Esc,
-    Tab,
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct EventConfig {
     pub tick_rate: Duration,
@@ -52,14 +29,14 @@ pub enum Event<I> {
 }
 
 pub struct Events {
-    pub rx: async_std::channel::Receiver<Event<Key>>,
+    pub rx: async_std::channel::Receiver<Event<event::KeyEvent>>,
 }
 
 impl Events {
     pub fn with_config(config: EventConfig) -> Events {
         use crossterm::event::{KeyCode::*, KeyModifiers};
         let tick_rate = config.tick_rate;
-        let (tx, rx) = unbounded::<Event<Key>>();
+        let (tx, rx) = unbounded::<Event<event::KeyEvent>>();
         task::spawn_local(async move {
             let mut reader = EventStream::new();
 
@@ -72,33 +49,8 @@ impl Events {
                         tx.send(Event::Tick).await.ok();
                     },
                     maybe_event = event => {
-                        if let Some(Ok(event::Event::Key(key))) = maybe_event {
-                            let key = match key.code {
-                                Backspace => Key::Backspace,
-                                Enter => Key::Char('\n'),
-                                Left => Key::Left,
-                                Right => Key::Right,
-                                Up => Key::Up,
-                                Down => Key::Down,
-                                Home => Key::Home,
-                                End => Key::End,
-                                PageUp => Key::PageUp,
-                                PageDown => Key::PageDown,
-                                Tab => Key::Tab,
-                                BackTab => Key::BackTab,
-                                Delete => Key::Delete,
-                                Insert => Key::Insert,
-                                F(k) => Key::F(k),
-                                Null => Key::Null,
-                                Esc => Key::Esc,
-                                Char(c) => match key.modifiers {
-                                    KeyModifiers::NONE | KeyModifiers::SHIFT => Key::Char(c),
-                                    KeyModifiers::CONTROL => Key::Ctrl(c),
-                                    KeyModifiers::ALT => Key::Alt(c),
-                                    _ => Key::Null,
-                                },
-                            };
-                            tx.send(Event::Input(key)).await.unwrap();
+                        if let Some(Ok(event::Event::Key(e))) = maybe_event {
+                            tx.send(Event::Input(e)).await.unwrap();
                             task::sleep(Duration::from_millis(1)).await;
                             task::yield_now().await;
                         };
@@ -111,7 +63,7 @@ impl Events {
 
     /// Attempts to read an event.
     /// This function will block the current thread.
-    pub async fn next(&self) -> Result<Event<Key>, async_std::channel::RecvError> {
+    pub async fn next(&self) -> Result<Event<event::KeyEvent>, async_std::channel::RecvError> {
         self.rx.recv().await
     }
 

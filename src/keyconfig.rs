@@ -1,90 +1,90 @@
 #![allow(clippy::eval_order_dependence)]
-use crate::event::Key;
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::error::Error;
 use std::hash::Hash;
+use crossterm::event::{KeyEvent, KeyCode};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug)]
 pub struct KeyConfig {
-    pub quit: Key,
-    pub refresh: Key,
-    pub go_to_bottom: Key,
-    pub go_to_top: Key,
-    pub down: Key,
-    pub up: Key,
-    pub page_down: Key,
-    pub page_up: Key,
-    pub delete: Key,
-    pub done: Key,
-    pub start_stop: Key,
-    pub select: Key,
-    pub select_all: Key,
-    pub undo: Key,
-    pub edit: Key,
-    pub modify: Key,
-    pub shell: Key,
-    pub log: Key,
-    pub add: Key,
-    pub annotate: Key,
-    pub help: Key,
-    pub filter: Key,
-    pub zoom: Key,
-    pub context_menu: Key,
-    pub next_tab: Key,
-    pub previous_tab: Key,
-    pub shortcut0: Key,
-    pub shortcut1: Key,
-    pub shortcut2: Key,
-    pub shortcut3: Key,
-    pub shortcut4: Key,
-    pub shortcut5: Key,
-    pub shortcut6: Key,
-    pub shortcut7: Key,
-    pub shortcut8: Key,
-    pub shortcut9: Key,
+    pub quit: KeyEvent,
+    pub refresh: KeyEvent,
+    pub go_to_bottom: KeyEvent,
+    pub go_to_top: KeyEvent,
+    pub down: KeyEvent,
+    pub up: KeyEvent,
+    pub page_down: KeyEvent,
+    pub page_up: KeyEvent,
+    pub delete: KeyEvent,
+    pub done: KeyEvent,
+    pub start_stop: KeyEvent,
+    pub select: KeyEvent,
+    pub select_all: KeyEvent,
+    pub undo: KeyEvent,
+    pub edit: KeyEvent,
+    pub modify: KeyEvent,
+    pub shell: KeyEvent,
+    pub log: KeyEvent,
+    pub add: KeyEvent,
+    pub annotate: KeyEvent,
+    pub help: KeyEvent,
+    pub filter: KeyEvent,
+    pub zoom: KeyEvent,
+    pub context_menu: KeyEvent,
+    pub next_tab: KeyEvent,
+    pub previous_tab: KeyEvent,
+    pub shortcut0: KeyEvent,
+    pub shortcut1: KeyEvent,
+    pub shortcut2: KeyEvent,
+    pub shortcut3: KeyEvent,
+    pub shortcut4: KeyEvent,
+    pub shortcut5: KeyEvent,
+    pub shortcut6: KeyEvent,
+    pub shortcut7: KeyEvent,
+    pub shortcut8: KeyEvent,
+    pub shortcut9: KeyEvent,
 }
 
 impl Default for KeyConfig {
     fn default() -> Self {
         Self {
-            quit: Key::Char('q'),
-            refresh: Key::Char('r'),
-            go_to_bottom: Key::Char('G'),
-            go_to_top: Key::Char('g'),
-            down: Key::Char('j'),
-            up: Key::Char('k'),
-            page_down: Key::Char('J'),
-            page_up: Key::Char('K'),
-            delete: Key::Char('x'),
-            done: Key::Char('d'),
-            start_stop: Key::Char('s'),
-            select: Key::Char('v'),
-            select_all: Key::Char('V'),
-            undo: Key::Char('u'),
-            edit: Key::Char('e'),
-            modify: Key::Char('m'),
-            shell: Key::Char('!'),
-            log: Key::Char('l'),
-            add: Key::Char('a'),
-            annotate: Key::Char('A'),
-            help: Key::Char('?'),
-            filter: Key::Char('/'),
-            zoom: Key::Char('z'),
-            context_menu: Key::Char('c'),
-            next_tab: Key::Char(']'),
-            previous_tab: Key::Char('['),
-            shortcut0: Key::Char('0'),
-            shortcut1: Key::Char('1'),
-            shortcut2: Key::Char('2'),
-            shortcut3: Key::Char('3'),
-            shortcut4: Key::Char('4'),
-            shortcut5: Key::Char('5'),
-            shortcut6: Key::Char('6'),
-            shortcut7: Key::Char('7'),
-            shortcut8: Key::Char('8'),
-            shortcut9: Key::Char('9'),
+            quit: KeyCode::Char('q').into(),
+            refresh: KeyCode::Char('r').into(),
+            go_to_bottom: KeyCode::Char('G').into(),
+            go_to_top: KeyCode::Char('g').into(),
+            down: KeyCode::Char('j').into(),
+            up: KeyCode::Char('k').into(),
+            page_down: KeyCode::Char('J').into(),
+            page_up: KeyCode::Char('K').into(),
+            delete: KeyCode::Char('x').into(),
+            done: KeyCode::Char('d').into(),
+            start_stop: KeyCode::Char('s').into(),
+            select: KeyCode::Char('v').into(),
+            select_all: KeyCode::Char('V').into(),
+            undo: KeyCode::Char('u').into(),
+            edit: KeyCode::Char('e').into(),
+            modify: KeyCode::Char('m').into(),
+            shell: KeyCode::Char('!').into(),
+            log: KeyCode::Char('l').into(),
+            add: KeyCode::Char('a').into(),
+            annotate: KeyCode::Char('A').into(),
+            help: KeyCode::Char('?').into(),
+            filter: KeyCode::Char('/').into(),
+            zoom: KeyCode::Char('z').into(),
+            context_menu: (KeyCode::Char('c')).into(),
+            next_tab: KeyCode::Char(']').into(),
+            previous_tab: KeyCode::Char('[').into(),
+            shortcut0: KeyCode::Char('0').into(),
+            shortcut1: KeyCode::Char('1').into(),
+            shortcut2: KeyCode::Char('2').into(),
+            shortcut3: KeyCode::Char('3').into(),
+            shortcut4: KeyCode::Char('4').into(),
+            shortcut5: KeyCode::Char('5').into(),
+            shortcut6: KeyCode::Char('6').into(),
+            shortcut7: KeyCode::Char('7').into(),
+            shortcut8: KeyCode::Char('8').into(),
+            shortcut9: KeyCode::Char('9').into(),
         }
     }
 }
@@ -190,12 +190,12 @@ impl KeyConfig {
         }
     }
 
-    fn get_config(&self, config: &str, data: &str) -> Option<Key> {
+    fn get_config(&self, config: &str, data: &str) -> Option<KeyEvent> {
         for line in data.split('\n') {
             if line.starts_with(config) {
                 let line = line.trim_start_matches(config).trim_start().trim_end().to_string();
                 if line.len() == 1 {
-                    return Some(Key::Char(line.chars().next().unwrap()));
+                    return Some(KeyCode::Char(line.chars().next().unwrap()).into());
                 } else {
                     return None;
                 }
@@ -206,7 +206,7 @@ impl KeyConfig {
                     .trim_end()
                     .to_string();
                 if line.len() == 1 {
-                    return Some(Key::Char(line.chars().next().unwrap()));
+                    return Some(KeyCode::Char(line.chars().next().unwrap()).into());
                 } else {
                     return None;
                 }

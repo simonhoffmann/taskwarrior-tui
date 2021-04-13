@@ -3,12 +3,12 @@ use crate::completion::{get_start_word_under_cursor, CompletionList};
 use crate::config;
 use crate::config::Config;
 use crate::context::Context;
-use crate::event::Key;
-use crate::event::{Event, Events};
 use crate::help::Help;
 use crate::keyconfig::KeyConfig;
 use crate::table::{Row, Table, TableMode, TableState};
 use crate::task_report::TaskReportTable;
+
+use crossterm::event::{KeyEvent, KeyCode, KeyModifiers};
 
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
@@ -1986,12 +1986,14 @@ impl TaskwarriorTuiApp {
         }
     }
 
-    pub fn handle_input(&mut self, input: Key) -> Result<()> {
+    pub fn handle_input(&mut self, input: KeyEvent) -> Result<()> {
         match self.mode {
             AppMode::TaskReport => {
-                if input == Key::Esc {
+                if input.code == KeyCode::Esc {
                     self.marked.clear();
-                } else if input == self.keyconfig.quit || input == Key::Ctrl('c') {
+                } else if input == self.keyconfig.quit {
+                    self.should_quit = true;
+                } else if input.modifiers == KeyModifiers::CONTROL && input.code == KeyCode::Char('c') {
                     self.should_quit = true;
                 } else if input == self.keyconfig.select {
                     self.task_table_state.multiple_selection();
@@ -2001,21 +2003,21 @@ impl TaskwarriorTuiApp {
                     self.toggle_mark_all();
                 } else if input == self.keyconfig.refresh {
                     self.update(true)?;
-                } else if input == self.keyconfig.go_to_bottom || input == Key::End {
+                } else if input == self.keyconfig.go_to_bottom || input == KeyCode::End.into() {
                     self.task_report_bottom();
-                } else if input == self.keyconfig.go_to_top || input == Key::Home {
+                } else if input == self.keyconfig.go_to_top || input == KeyCode::Home.into() {
                     self.task_report_top();
-                } else if input == Key::Down || input == self.keyconfig.down {
+                } else if input == KeyCode::Down.into() || input == self.keyconfig.down {
                     self.task_report_next();
-                } else if input == Key::Up || input == self.keyconfig.up {
+                } else if input == KeyCode::Up.into() || input == self.keyconfig.up {
                     self.task_report_previous();
-                } else if input == Key::PageDown || input == self.keyconfig.page_down {
+                } else if input == KeyCode::PageDown.into() || input == self.keyconfig.page_down {
                     self.task_report_next_page();
-                } else if input == Key::PageUp || input == self.keyconfig.page_up {
+                } else if input == KeyCode::PageUp.into() || input == self.keyconfig.page_up {
                     self.task_report_previous_page();
-                } else if input == Key::Ctrl('e') {
+                } else if input.modifiers == KeyModifiers::CONTROL && input.code == KeyCode::Char('e') {
                     self.task_details_scroll_down();
-                } else if input == Key::Ctrl('y') {
+                } else if input.modifiers == KeyModifiers::CONTROL && input.code == KeyCode::Char('y') {
                     self.task_details_scroll_up();
                 } else if input == self.keyconfig.done {
                     match self.task_done() {
@@ -2117,7 +2119,7 @@ impl TaskwarriorTuiApp {
                 } else if input == self.keyconfig.filter {
                     self.mode = AppMode::TaskFilter;
                     self.update_completion_list();
-                } else if input == Key::Char(':') {
+                } else if input == KeyCode::Char(':').into() {
                     self.mode = AppMode::TaskJump;
                 } else if input == self.keyconfig.shortcut1 {
                     match self.task_shortcut(1) {
@@ -2200,13 +2202,13 @@ impl TaskwarriorTuiApp {
                 }
             }
             AppMode::TaskContextMenu => {
-                if input == self.keyconfig.quit || input == Key::Esc {
+                if input == self.keyconfig.quit || input.code == KeyCode::Esc {
                     self.mode = AppMode::TaskReport;
-                } else if input == Key::Down || input == self.keyconfig.down {
+                } else if input == self.keyconfig.down || input.code == KeyCode::Down {
                     self.context_next();
-                } else if input == Key::Up || input == self.keyconfig.up {
+                } else if input == self.keyconfig.up || input.code == KeyCode::Up {
                     self.context_previous();
-                } else if input == Key::Char('\n') {
+                } else if input.code == KeyCode::Char('\n') {
                     match self.context_select() {
                         Ok(_) => {
                             self.get_context()?;
@@ -2220,7 +2222,7 @@ impl TaskwarriorTuiApp {
                 }
             }
             AppMode::TaskHelpPopup => {
-                if input == self.keyconfig.quit || input == Key::Esc {
+                if input == self.keyconfig.quit || input.code == KeyCode::Esc {
                     self.mode = AppMode::TaskReport;
                 } else if input == self.keyconfig.down {
                     self.help_popup.scroll = self.help_popup.scroll.checked_add(1).unwrap_or(0);
@@ -2232,8 +2234,8 @@ impl TaskwarriorTuiApp {
                     self.help_popup.scroll = self.help_popup.scroll.saturating_sub(1);
                 }
             }
-            AppMode::TaskModify => match input {
-                Key::Esc => {
+            AppMode::TaskModify => match input.code {
+                KeyCode::Esc => {
                     if self.show_completion_pane {
                         self.show_completion_pane = false;
                         self.completion_list.unselect();
@@ -2242,7 +2244,7 @@ impl TaskwarriorTuiApp {
                         self.mode = AppMode::TaskReport;
                     }
                 }
-                Key::Char('\n') => {
+                KeyCode::Char('\n') => {
                     if self.show_completion_pane {
                         self.show_completion_pane = false;
                         if let Some(s) = self.completion_list.selected() {
@@ -2265,7 +2267,7 @@ impl TaskwarriorTuiApp {
                         }
                     }
                 }
-                Key::Tab => {
+                KeyCode::Tab => {
                     if !self.completion_list.is_empty() {
                         if !self.show_completion_pane {
                             self.show_completion_pane = true;
@@ -2273,12 +2275,12 @@ impl TaskwarriorTuiApp {
                         self.completion_list.next();
                     }
                 }
-                Key::BackTab => {
+                KeyCode::BackTab => {
                     if !self.completion_list.is_empty() {
                         self.completion_list.previous();
                     }
                 }
-                Key::Up => {
+                KeyCode::Up => {
                     if self.show_completion_pane && !self.completion_list.is_empty() {
                         self.completion_list.previous();
                     } else if let Some(s) = self
@@ -2290,7 +2292,7 @@ impl TaskwarriorTuiApp {
                         self.modify.update(&s, std::cmp::min(s.graphemes(true).count(), p));
                     }
                 }
-                Key::Down => {
+                KeyCode::Down => {
                     if self.show_completion_pane && !self.completion_list.is_empty() {
                         self.completion_list.next();
                     } else if let Some(s) = self
@@ -2308,8 +2310,8 @@ impl TaskwarriorTuiApp {
                     self.update_input_for_completion();
                 }
             },
-            AppMode::TaskSubprocess => match input {
-                Key::Char('\n') => match self.task_subprocess() {
+            AppMode::TaskSubprocess => match input.code {
+                KeyCode::Char('\n') => match self.task_subprocess() {
                     Ok(_) => {
                         self.mode = AppMode::TaskReport;
                         self.command.update("", 0);
@@ -2320,14 +2322,14 @@ impl TaskwarriorTuiApp {
                         self.error = e;
                     }
                 },
-                Key::Esc => {
+                KeyCode::Esc => {
                     self.command.update("", 0);
                     self.mode = AppMode::TaskReport;
                 }
                 _ => handle_movement(&mut self.command, input),
             },
-            AppMode::TaskLog => match input {
-                Key::Esc => {
+            AppMode::TaskLog => match input.code {
+                KeyCode::Esc => {
                     if self.show_completion_pane {
                         self.show_completion_pane = false;
                         self.completion_list.unselect();
@@ -2336,7 +2338,7 @@ impl TaskwarriorTuiApp {
                         self.mode = AppMode::TaskReport;
                     }
                 }
-                Key::Char('\n') => {
+                KeyCode::Char('\n') => {
                     if self.show_completion_pane {
                         self.show_completion_pane = false;
                         if let Some(s) = self.completion_list.selected() {
@@ -2359,7 +2361,7 @@ impl TaskwarriorTuiApp {
                         }
                     }
                 }
-                Key::Tab => {
+                KeyCode::Tab => {
                     if !self.completion_list.is_empty() {
                         if !self.show_completion_pane {
                             self.show_completion_pane = true;
@@ -2367,12 +2369,12 @@ impl TaskwarriorTuiApp {
                         self.completion_list.next();
                     }
                 }
-                Key::BackTab => {
+                KeyCode::BackTab => {
                     if !self.completion_list.is_empty() {
                         self.completion_list.previous();
                     }
                 }
-                Key::Up => {
+                KeyCode::Up => {
                     if self.show_completion_pane && !self.completion_list.is_empty() {
                         self.completion_list.previous();
                     } else if let Some(s) = self
@@ -2384,7 +2386,7 @@ impl TaskwarriorTuiApp {
                         self.command.update(&s, std::cmp::min(s.graphemes(true).count(), p));
                     }
                 }
-                Key::Down => {
+                KeyCode::Down => {
                     if self.show_completion_pane && !self.completion_list.is_empty() {
                         self.completion_list.next();
                     } else if let Some(s) = self
@@ -2402,8 +2404,8 @@ impl TaskwarriorTuiApp {
                     self.update_input_for_completion();
                 }
             },
-            AppMode::TaskAnnotate => match input {
-                Key::Char('\n') => match self.task_annotate() {
+            AppMode::TaskAnnotate => match input.code {
+                KeyCode::Char('\n') => match self.task_annotate() {
                     Ok(_) => {
                         self.mode = AppMode::TaskReport;
                         self.command.update("", 0);
@@ -2414,14 +2416,14 @@ impl TaskwarriorTuiApp {
                         self.error = e;
                     }
                 },
-                Key::Esc => {
+                KeyCode::Esc => {
                     self.command.update("", 0);
                     self.mode = AppMode::TaskReport;
                 }
                 _ => handle_movement(&mut self.command, input),
             },
-            AppMode::TaskJump => match input {
-                Key::Char('\n') => match self.task_report_jump() {
+            AppMode::TaskJump => match input.code {
+                KeyCode::Char('\n') => match self.task_report_jump() {
                     Ok(_) => {
                         self.mode = AppMode::TaskReport;
                         self.command.update("", 0);
@@ -2433,14 +2435,14 @@ impl TaskwarriorTuiApp {
                         self.error = e.to_string();
                     }
                 },
-                Key::Esc => {
+                KeyCode::Esc => {
                     self.command.update("", 0);
                     self.mode = AppMode::TaskReport;
                 }
                 _ => handle_movement(&mut self.command, input),
             },
-            AppMode::TaskAdd => match input {
-                Key::Esc => {
+            AppMode::TaskAdd => match input.code {
+                KeyCode::Esc => {
                     if self.show_completion_pane {
                         self.show_completion_pane = false;
                         self.completion_list.unselect();
@@ -2449,7 +2451,7 @@ impl TaskwarriorTuiApp {
                         self.mode = AppMode::TaskReport;
                     }
                 }
-                Key::Char('\n') => {
+                KeyCode::Char('\n') => {
                     if self.show_completion_pane {
                         self.show_completion_pane = false;
                         if let Some(s) = self.completion_list.selected() {
@@ -2472,7 +2474,7 @@ impl TaskwarriorTuiApp {
                         }
                     }
                 }
-                Key::Tab => {
+                KeyCode::Tab => {
                     if !self.completion_list.is_empty() {
                         if !self.show_completion_pane {
                             self.show_completion_pane = true;
@@ -2480,12 +2482,12 @@ impl TaskwarriorTuiApp {
                         self.completion_list.next();
                     }
                 }
-                Key::BackTab => {
+                KeyCode::BackTab => {
                     if !self.completion_list.is_empty() {
                         self.completion_list.previous();
                     }
                 }
-                Key::Up => {
+                KeyCode::Up => {
                     if self.show_completion_pane && !self.completion_list.is_empty() {
                         self.completion_list.previous();
                     } else if let Some(s) = self
@@ -2497,7 +2499,7 @@ impl TaskwarriorTuiApp {
                         self.command.update(&s, std::cmp::min(s.graphemes(true).count(), p));
                     }
                 }
-                Key::Down => {
+                KeyCode::Down => {
                     if self.show_completion_pane && !self.completion_list.is_empty() {
                         self.completion_list.next();
                     } else if let Some(s) = self
@@ -2515,8 +2517,8 @@ impl TaskwarriorTuiApp {
                     self.update_input_for_completion();
                 }
             },
-            AppMode::TaskFilter => match input {
-                Key::Esc => {
+            AppMode::TaskFilter => match input.code {
+                KeyCode::Esc => {
                     if self.show_completion_pane {
                         self.show_completion_pane = false;
                         self.completion_list.unselect();
@@ -2526,7 +2528,7 @@ impl TaskwarriorTuiApp {
                         self.update(true)?;
                     }
                 }
-                Key::Char('\n') => {
+                KeyCode::Char('\n') => {
                     if self.show_completion_pane {
                         self.show_completion_pane = false;
                         if let Some(s) = self.completion_list.selected() {
@@ -2541,7 +2543,7 @@ impl TaskwarriorTuiApp {
                         self.update(true)?;
                     }
                 }
-                Key::Up => {
+                KeyCode::Up => {
                     if self.show_completion_pane && !self.completion_list.is_empty() {
                         self.completion_list.previous();
                     } else if let Some(s) = self
@@ -2554,7 +2556,7 @@ impl TaskwarriorTuiApp {
                         self.dirty = true;
                     }
                 }
-                Key::Down => {
+                KeyCode::Down => {
                     if self.show_completion_pane && !self.completion_list.is_empty() {
                         self.completion_list.previous();
                     } else if let Some(s) = self
@@ -2567,7 +2569,7 @@ impl TaskwarriorTuiApp {
                         self.dirty = true;
                     }
                 }
-                Key::Tab => {
+                KeyCode::Tab => {
                     if !self.completion_list.is_empty() {
                         if !self.show_completion_pane {
                             self.show_completion_pane = true;
@@ -2575,7 +2577,7 @@ impl TaskwarriorTuiApp {
                         self.completion_list.next();
                     }
                 }
-                Key::BackTab => {
+                KeyCode::BackTab => {
                     if !self.completion_list.is_empty() {
                         self.completion_list.previous();
                     }
@@ -2588,21 +2590,23 @@ impl TaskwarriorTuiApp {
             },
             AppMode::TaskError => self.mode = AppMode::TaskReport,
             AppMode::Calendar => {
-                if input == self.keyconfig.quit || input == Key::Ctrl('c') {
+                if input == self.keyconfig.quit {
+                    self.should_quit = true;
+                } else if input.modifiers == KeyModifiers::CONTROL && input.code == KeyCode::Char('c') {
                     self.should_quit = true;
                 } else if input == self.keyconfig.previous_tab {
                     self.mode = AppMode::TaskReport;
-                } else if input == Key::Up || input == self.keyconfig.up {
+                } else if input == self.keyconfig.up || input.code == KeyCode::Up {
                     if self.calendar_year > 0 {
                         self.calendar_year -= 1;
                     }
-                } else if input == Key::Down || input == self.keyconfig.down {
+                } else if input == self.keyconfig.down || input.code == KeyCode::Down {
                     self.calendar_year += 1;
-                } else if input == Key::PageUp || input == self.keyconfig.page_up {
+                } else if input == self.keyconfig.page_up || input.code == KeyCode::PageUp {
                     if self.calendar_year > 0 {
                         self.calendar_year -= 10
                     }
-                } else if input == Key::PageDown || input == self.keyconfig.page_down {
+                } else if input == self.keyconfig.page_down || input.code == KeyCode::PageDown {
                     self.calendar_year += 10
                 }
             }
@@ -2695,48 +2699,48 @@ impl TaskwarriorTuiApp {
     }
 }
 
-pub fn handle_movement(linebuffer: &mut LineBuffer, input: Key) {
-    match input {
-        Key::Ctrl('f') | Key::Right => {
+pub fn handle_movement(linebuffer: &mut LineBuffer, input: KeyEvent) {
+    match input.code {
+        KeyCode::Right => {
             linebuffer.move_forward(1);
         }
-        Key::Ctrl('b') | Key::Left => {
+        KeyCode::Ctrl('b') | KeyCode::Left => {
             linebuffer.move_backward(1);
         }
-        Key::Char(c) => {
+        KeyCode::Char(c) => {
             linebuffer.insert(c, 1);
         }
-        Key::Ctrl('h') | Key::Backspace => {
+        KeyCode::Ctrl('h') | KeyCode::Backspace => {
             linebuffer.backspace(1);
         }
-        Key::Ctrl('d') | Key::Delete => {
+        KeyCode::Ctrl('d') | KeyCode::Delete => {
             linebuffer.delete(1);
         }
-        Key::Ctrl('a') | Key::Home => {
+        KeyCode::Ctrl('a') | KeyCode::Home => {
             linebuffer.move_home();
         }
-        Key::Ctrl('e') | Key::End => {
+        KeyCode::Ctrl('e') | KeyCode::End => {
             linebuffer.move_end();
         }
-        Key::Ctrl('k') => {
+        KeyCode::Ctrl('k') => {
             linebuffer.kill_line();
         }
-        Key::Ctrl('u') => {
+        KeyCode::Ctrl('u') => {
             linebuffer.discard_line();
         }
-        Key::Ctrl('w') => {
+        KeyCode::Ctrl('w') => {
             linebuffer.delete_prev_word(Word::Emacs, 1);
         }
-        Key::Alt('d') => {
+        KeyCode::Alt('d') => {
             linebuffer.delete_word(At::AfterEnd, Word::Emacs, 1);
         }
-        Key::Alt('f') => {
+        KeyCode::Alt('f') => {
             linebuffer.move_to_next_word(At::AfterEnd, Word::Emacs, 1);
         }
-        Key::Alt('b') => {
+        KeyCode::Alt('b') => {
             linebuffer.move_to_prev_word(Word::Emacs, 1);
         }
-        Key::Alt('t') => {
+        KeyCode::Alt('t') => {
             linebuffer.transpose_words(1);
         }
         _ => {}

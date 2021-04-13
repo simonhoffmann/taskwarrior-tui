@@ -14,7 +14,7 @@ mod keyconfig;
 mod table;
 mod task_report;
 
-use crate::event::{Event, EventConfig, Events, Key};
+use crate::event::{Event, EventConfig, Events};
 use anyhow::Result;
 use clap::{App, Arg};
 use std::env;
