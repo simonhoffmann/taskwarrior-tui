@@ -1,10 +1,10 @@
 #![allow(clippy::eval_order_dependence)]
 use anyhow::{anyhow, Result};
+use crossterm::event::{KeyCode, KeyEvent};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::error::Error;
 use std::hash::Hash;
-use crossterm::event::{KeyEvent, KeyCode};
 
 #[derive(Debug)]
 pub struct KeyConfig {

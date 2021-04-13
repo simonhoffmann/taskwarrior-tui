@@ -8,7 +8,7 @@ use crate::keyconfig::KeyConfig;
 use crate::table::{Row, Table, TableMode, TableState};
 use crate::task_report::TaskReportTable;
 
-use crossterm::event::{KeyEvent, KeyCode, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
