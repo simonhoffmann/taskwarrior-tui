@@ -164,6 +164,7 @@ pub enum AppMode {
     TaskJump,
     TaskDeletePrompt,
     Calendar,
+    Projects,
 }
 
 pub struct TaskwarriorTuiApp {
@@ -323,6 +324,7 @@ impl TaskwarriorTuiApp {
             | AppMode::TaskLog
             | AppMode::TaskModify => self.draw_task(f),
             AppMode::Calendar => self.draw_calendar(f),
+            AppMode::Projects => self.draw_projects(f),
         }
     }
 
@@ -333,6 +335,44 @@ impl TaskwarriorTuiApp {
         let p = Paragraph::new(Text::from(t))
             .block(Block::default().borders(Borders::ALL).border_type(BorderType::Rounded));
         f.render_widget(p, area);
+    }
+
+    pub fn draw_projects(&mut self, f: &mut Frame<impl Backend>) {
+        let dates_with_styles = self.get_dates_with_styles();
+        let rects = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(0)].as_ref())
+            .split(f.size());
+        let today = Local::today();
+        let mut title = vec![
+            Span::styled("Task", Style::default().add_modifier(Modifier::DIM)),
+            Span::from("|"),
+            Span::styled("Projects", Style::default().add_modifier(Modifier::BOLD)),
+            Span::from("|"),
+            Span::styled("Calendar", Style::default().add_modifier(Modifier::DIM)),
+        ];
+
+        if !self.current_context.is_empty() {
+            let context_style = Style::default();
+            context_style.add_modifier(Modifier::ITALIC);
+            title.insert(title.len(), Span::from(" ("));
+            title.insert(title.len(), Span::styled(&self.current_context, context_style));
+            title.insert(title.len(), Span::from(")"));
+        }
+
+        let mut c = Calendar::default()
+            .block(
+                Block::default()
+                    .title(Spans::from(title))
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Rounded),
+            )
+            .today_style(self.config.uda_style_calendar_today)
+            .year(self.calendar_year)
+            .date_style(dates_with_styles)
+            .months_per_row(self.config.uda_calendar_months_per_row);
+        c.title_background_color = self.config.uda_style_calendar_title.bg.unwrap_or(Color::Reset);
+        f.render_widget(c, rects[0]);
     }
 
     pub fn draw_calendar(&mut self, f: &mut Frame<impl Backend>) {
@@ -2118,6 +2158,15 @@ impl TaskwarriorTuiApp {
 
     pub fn handle_input(&mut self, input: Key) -> Result<()> {
         match self.mode {
+            AppMode::Projects => {
+                if input == self.keyconfig.quit || input == Key::Ctrl('c') {
+                    self.should_quit = true;
+                } else if input == self.keyconfig.next_tab {
+                    self.mode = AppMode::Calendar;
+                } else if input == self.keyconfig.previous_tab {
+                    self.mode = AppMode::TaskReport;
+                }
+            }
             AppMode::TaskReport => {
                 if input == Key::Esc {
                     self.marked.clear();
@@ -2343,7 +2392,7 @@ impl TaskwarriorTuiApp {
                 } else if input == self.keyconfig.context_menu {
                     self.mode = AppMode::TaskContextMenu;
                 } else if input == self.keyconfig.next_tab {
-                    self.mode = AppMode::Calendar;
+                    self.mode = AppMode::Projects;
                 }
             }
             AppMode::TaskContextMenu => {
@@ -2827,7 +2876,7 @@ impl TaskwarriorTuiApp {
                 if input == self.keyconfig.quit || input == Key::Ctrl('c') {
                     self.should_quit = true;
                 } else if input == self.keyconfig.previous_tab {
-                    self.mode = AppMode::TaskReport;
+                    self.mode = AppMode::Projects;
                 } else if input == Key::Up || input == self.keyconfig.up {
                     if self.calendar_year > 0 {
                         self.calendar_year -= 1;
